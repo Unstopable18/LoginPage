@@ -6,8 +6,10 @@
 //
 
 import SwiftUI
+import FirebaseAuth
 
 struct LoginView: View {
+    var onSuccessLogin: () -> () = { }
     
     @State private var email: String = ""
     @State private var password: String = ""
@@ -21,6 +23,23 @@ struct LoginView: View {
     
     var isSignInButtonEnabled : Bool {
         !email.isEmpty && !password.isEmpty
+    }
+    
+    private func login() async {
+        do {
+            let auth = Auth.auth()
+            let result = try await auth.signIn(withEmail: email, password: password)
+            if result.user.isEmailVerified{
+                onSuccessLogin()
+                print("Success!")
+            }else{
+                try await result.user.sendEmailVerification()
+                userNotVerified = true
+            }
+        } catch {
+            alert.message = error.localizedDescription
+            alert.show = true
+        }
     }
     
     var body: some View {
@@ -48,9 +67,10 @@ struct LoginView: View {
             
             TaskButton(title: "Sign In"){
                 isFocused = false
-                try? await Task.sleep(for: .seconds(1))
-                alert.message = "There is no user with this email"
-                alert.show.toggle()
+                await login()
+//                try? await Task.sleep(for: .seconds(1))
+//                alert.message = "There is no user with this email"
+//                alert.show.toggle()
             }onStatusChange: { isLoading in
                 isPerforming = isLoading
             }
@@ -91,7 +111,7 @@ struct LoginView: View {
         .allowsHitTesting(!isPerforming)
         .opacity(isPerforming ? 0.9 : 1)
         .sheet(isPresented: $createAccount){
-            RegisterAccountView()
+            RegisterAccountView(onSuccessLogin: onSuccessLogin)
                 .presentationDetents([.height(400)])
                 .presentationBackground(.background)
                 .presentationCornerRadius(isIOS26 ? nil : 30)
@@ -102,8 +122,21 @@ struct LoginView: View {
                 .presentationBackground(.background)
                 .presentationCornerRadius(isIOS26 ? nil : 30)
         }
-        .sheetAlert(isPresented: $userNotVerified, prominentSymbol: "envelope.badge", title: "Email Verification", message: "We have sent a verification email to\nyour address. Please check your inbox.", buttonTittle: "Verified?", buttonAction: {
-            
+        .sheetAlert(isPresented: $userNotVerified,
+                    prominentSymbol: "envelope.badge",
+                    title: "Email Verification",
+                    message: "We have sent a verification email to\nyour address. Please check your inbox.",
+                    buttonTittle: "Verified?",
+                    buttonAction: {
+            if let user = Auth.auth().currentUser {
+                try? await user.reload()
+                if user.isEmailVerified{
+                    print("Success!")
+                    userNotVerified = false
+                    try? await Task.sleep(for: .seconds(0.25))
+                    onSuccessLogin()
+                }
+            }
         })
         .customAlert($alert)
         .focused($isFocused)

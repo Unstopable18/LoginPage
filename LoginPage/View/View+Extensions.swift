@@ -60,7 +60,11 @@ extension View {
     func customAlert(_ modal: Binding<AlertModel>)-> some View{
         self
             .sheetAlert(isPresented: modal.show, prominentSymbol: modal.wrappedValue.icon, title: modal.wrappedValue.title, message: modal.wrappedValue.message, buttonTittle: "Done"){
-                modal.wrappedValue.show = false
+                if let action = modal.wrappedValue.action{
+                    action()
+                }else{
+                    modal.wrappedValue.show = false
+                }
             }
     }
 }
@@ -70,4 +74,5 @@ struct AlertModel{
     var title: String = "Something Went Wrong!"
     var message: String
     var show: Bool = false
+    var action : (() -> ())? = nil
 }

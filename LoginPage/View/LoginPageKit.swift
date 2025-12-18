@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import FirebaseAuth
 
 struct LoginPageKit<Content:View>: View {
     
@@ -22,7 +23,14 @@ struct LoginPageKit<Content:View>: View {
             if isLoggedIn{
                 content
             }else{
-                LoginView()
+                LoginView{
+                    isLoggedIn = true
+                }
+            }
+        }
+        .task {
+            if let user = Auth.auth().currentUser, !user.isEmailVerified{
+                try? Auth.auth().signOut()
             }
         }
     }
